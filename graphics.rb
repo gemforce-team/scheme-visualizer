@@ -1,58 +1,71 @@
+extend Gems
+
 def init
+	@tree = nil
+	@background = Color.new 255, 240
 	@black = Color.new 255, 30, 28, 26
+	@red = Color.new 255, 200, 32, 38
+	@orange = Color.new 255, 250, 140, 20
+	@yellow = Color.new 255, 240, 220, 10
+	@grey = Color.new 255, 130
+	@brush = Brush.new
 	@grade = 1
+	setViewSize 0, [0, 5, 70, 50]
+end
+
+def event i, v
+	if i == "source"
+		@tree = Fork.new
+		@tree.me = v
+		redraw
+	
+		watch "node", @tree.node(64).me + ", " + @tree.node(31).layer.to_s
+		watch "t", @tree.last
+	end
 end
 
 def draw v
-	p, s = [10, 30], 9
-	method("g" + @grade.to_s).call v, p, s
-	p, s = [30, 30], 9
-	g2 v, p, s
-	p, s = [50, 30], 9
-	g3 v, p, s
-end
-
-def g1 v, pos, size
-	pos[1] -= size * 0.1
-	points = []
-	0.upto(2) do |i|
-		pa = move_at_angle(pos, -90 + i * 120, size * 0.91)
-		points << pa
-	end
-	p = Pen.new @black, 0.25
-	b = Brush.new @black
-	v.drawClosedCurve b, points, 0.75
-end
-
-def g2 v, pos, size
-	points = []
-	0.upto(2) do |i|
-		pa = move_at_angle(pos, -90 + i * 120, size)
-		points << pa
-	end
-	pa = move_at_angle(pos, 90, size * 0.35)
-	points.insert 2, pa
-	p = Pen.new @black, 0.25
-	b = Brush.new @black
-	v.drawClosedCurve b, points, 0.6
-end
-
-def g3 v, pos, size
-	pos[1] -= size * 0.2
-	points = []
-	0.upto(3) do |i|
-		pa = move_at_angle(pos, -45 + i * 90, size)
-		points << pa
-	end
-	p = Pen.new @black, 0.25
-	b = Brush.new @black
-	v.drawClosedCurve b, points, 0.2
-end
-
-def radians(angle)
-	return angle * (Math::PI/180)
-end
+	#return if @brush == nil
+	@brush.setColor @background
+	v.drawRectangle @brush, [0, 0, v.width, v.height]
+	return if @tree == nil
 	
-def move_at_angle(p, a, d)
-	return p[0] + Math.cos(radians(a)) * d, p[1] + Math.sin(radians(a)) * d
+	deepest = @tree.last
+	nodes = 2**deepest
+	size = v.width / (nodes + 2)
+	vert = (v.height - size * 2) / deepest
+	offset = []
+	offset[1] = size
+	obj = nil
+	watch "size", size
+	
+	deepest.downto(0) do |row|
+		n = 2**row
+		offset[0] = (v.width - n * size) * 0.5
+		((n-1)..(n-2+n)).each do |id|
+			obj = @tree.node(id)
+			if obj != nil
+				x = offset[0] + (id - (n - 1)) * size
+				y = offset[1] + row * vert
+				@brush.setColor case obj.me 
+				when "b" 
+					@black
+				when "r"
+					@red
+				when "o"
+					@orange
+				when "y"
+					@yellow
+				else
+					@grey
+				end
+				v.drawPath @brush, method("g" + 1.to_s).call([x, y], size * 0.5)
+			end
+		end
+	end
+	
+	
+	#p, s = [22, 30], 8
+	#@brush.setColor @orange
+	#v.drawPath @brush, g2(p, s)
 end
