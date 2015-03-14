@@ -2,7 +2,7 @@ extend Gems
 
 def init
 	@tree = nil
-	@background = Color.new 255, 240
+	@background = Color.new 255, 190, 220, 250
 	@black = Color.new 255, 30, 28, 26
 	@red = Color.new 255, 200, 32, 38
 	@orange = Color.new 255, 250, 140, 20
@@ -10,62 +10,92 @@ def init
 	@grey = Color.new 255, 130
 	@brush = Brush.new
 	@grade = 1
-	setViewSize 0, [0, 5, 70, 50]
+	@steps = 1
+	#setViewSize 0, [0, 5, 120, 60]
+	redraw
 end
 
 def event i, v
 	if i == "source"
 		@tree = Fork.new
 		@tree.me = v
+		n = -1
+		row = @tree.last
+		until n != -1
+			n = amount @tree, row - 1
+			row -=1
+		end
+		@steps = n
+		watch "steps", n
 		redraw
-	
-		watch "node", @tree.node(64).me + ", " + @tree.node(31).layer.to_s
-		watch "t", @tree.last
 	end
+end
+
+def amount tree, row
+	result = -1
+	nodes = 2**row
+	r = nodes * 2 - 2
+	l = nodes - 1
+	r.downto(l) do |n|
+		if tree.node(n) != nil
+			result = 1 + n - l
+			if result < 2**(row - 1)
+				result = -1
+			end
+			break
+		end
+	end
+	return result
 end
 
 def draw v
 	#return if @brush == nil
 	@brush.setColor @background
 	v.drawRectangle @brush, [0, 0, v.width, v.height]
-	return if @tree == nil
+	return if @tree == nil or @steps == nil
 	
 	deepest = @tree.last
 	nodes = 2**deepest
-	size = v.width / (nodes + 2)
-	vert = (v.height - size * 2) / deepest
-	offset = []
-	offset[1] = size
+	hori = v.width / nodes
+	vert = v.height / deepest
 	obj = nil
-	watch "size", size
 	
 	deepest.downto(0) do |row|
-		n = 2**row
-		offset[0] = (v.width - n * size) * 0.5
-		((n-1)..(n-2+n)).each do |id|
+		low = 2**row - 1
+		high = low + @steps
+		width = 2**(deepest - row) * hori
+		
+		(low..high).each do |id|
+			x = (id - low) * width + (width * 0.5)
 			obj = @tree.node(id)
 			if obj != nil
-				x = offset[0] + (id - (n - 1)) * size
-				y = offset[1] + row * vert
+				x = (id - low) * width + (width * 0.5)
+				y = hori * 0.5 + row * (vert - hori / deepest)
+				grade = obj.value
+				gem = nil
 				@brush.setColor case obj.me 
 				when "b" 
 					@black
 				when "r"
 					@red
-				when "o"
+				when "o", "m"
 					@orange
-				when "y"
+				when "y", "k"
 					@yellow
 				else
 					@grey
 				end
-				v.drawPath @brush, method("g" + 1.to_s).call([x, y], size * 0.5)
+				v.drawPath @brush, method("g" + grade.to_s).call([x, y], hori * 0.5)
+				
+				if row > 0
+					if id.even?
+						v.drawLine Pen.new(@grey, 0.125), [x, y - hori * 0.75], [x - width * 0.5, (row-1) * vert + hori * 0.75]
+					else
+						v.drawLine Pen.new(@grey, 0.125), [x, y - hori * 0.75], [x + width * 0.5, (row-1) * vert + hori * 0.75]
+					end
+				end
+				
 			end
 		end
 	end
-	
-	
-	#p, s = [22, 30], 8
-	#@brush.setColor @orange
-	#v.drawPath @brush, g2(p, s)
 end
