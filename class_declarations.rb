@@ -7,9 +7,11 @@ class Fork
 		@last = 0
 		@id = id
 		@test = []
+		@value = 0
 	end
 	
 	attr_reader :id
+	attr_accessor :value
 	
 	def layer
 		return @layer
@@ -18,6 +20,9 @@ class Fork
 	def me= source
 		@me = disclose source
 		split @me
+		if @layer == 0 and @id == 0
+			calc
+		end
 	end
 	
 	def me
@@ -142,9 +147,26 @@ class Fork
 			offset = source.to_i - 1
 			@left.me = @right.me = if offset == 1 then "" else offset.to_s end + $'
 		else
+			@value = 1
 			@last = 1
 		end
+	end
 	
+	def calc
+		amount = 2**last
+		r = [amount * 2 - 2, 0].max
+		r.downto(0) do |n|
+			node = node(n)
+			if node != nil
+				if node.value == 0
+					if node.left.value == node.right.value
+						node.value = node.left.value + 1
+					else
+						node.value = [node.left.value, node.right.value].max
+					end
+				end	
+			end
+		end
 	end
 end
 
