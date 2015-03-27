@@ -1,6 +1,14 @@
 class Fork
-	def initialize layer = 0, id = 0
+	@@id = []
+	def initialize layer = 0, id = 0, reset = false
+		@@id = [] if reset
 		@layer = layer
+		if @@id[@layer] == nil
+			@@id[@layer] = 0
+		else
+			@@id[@layer] += 1
+		end
+		
 		@me = ""
 		@left = nil
 		@right = nil
@@ -11,7 +19,7 @@ class Fork
 	end
 	
 	attr_reader :id
-	attr_accessor :value
+	attr_accessor :value, :x, :y, :from
 	
 	def layer
 		return @layer
@@ -20,9 +28,6 @@ class Fork
 	def me= source
 		@me = disclose source
 		split @me
-		if @layer == 0 and @id == 0
-			calc
-		end
 	end
 	
 	def me
@@ -64,11 +69,11 @@ class Fork
 		return @test.flatten.max
 	end
 	
-	def node id
-		if @id == id
-			return self
-		elsif @last == 0
-			return [@left.node(id), @right.node(id)].compact.at(0)
+	def flatten
+		if @layer != last
+			return [self, left.flatten, right.flatten]
+		else
+			return [self]
 		end
 	end
 	
@@ -122,30 +127,27 @@ class Fork
 		offset, id = 0, 0
 		left, right = "", ""
 		
-		if @layer == 0
-			id = 1
-		else
-			id = @id * 2 + 1
-		end
-	
 		if source.start_with? "("
 			offset = find_closing source
 			left = disclose source[0..offset]
 			right = disclose source[(offset + 2)..(source.length - 1)]
 			
-			@left = Fork.new @layer + 1, id
+			@left = Fork.new @layer + 1, @id * 2
 			@left.me = left
-			@right = Fork.new @layer + 1, id + 1
+			@right = Fork.new @layer + 1, @id * 2 + 1
 			@right.me = right
+			@left.from = @right.from = self
 		elsif source.include? "+"
-			@left = Fork.new @layer + 1, id
-			@right = Fork.new @layer + 1, id + 1
+			@left = Fork.new @layer + 1, @id * 2
+			@right = Fork.new @layer + 1, @id * 2 + 1
 			@left.me, @right.me = source.split("+", 2)
+			@left.from = @right.from = self
 		elsif source.match /[1-9]/
-			@left = Fork.new @layer + 1, id
-			@right = Fork.new @layer + 1, id + 1
+			@left = Fork.new @layer + 1, @id * 2
+			@right = Fork.new @layer + 1, @id * 2 + 1
 			offset = source.to_i - 1
 			@left.me = @right.me = if offset == 1 then "" else offset.to_s end + $'
+			@left.from = @right.from = self
 		else
 			@value = 1
 			@last = 1
@@ -153,20 +155,32 @@ class Fork
 	end
 	
 	def calc
-		amount = 2**last
-		r = [amount * 2 - 2, 0].max
-		r.downto(0) do |n|
-			node = node(n)
-			if node != nil
-				if node.value == 0
-					if node.left.value == node.right.value
-						node.value = node.left.value + 1
-					else
-						node.value = [node.left.value, node.right.value].max
-					end
-				end	
+		node = self
+		
+		if node.value == 0
+			if node.is_last?
+				return 1
+			else
+				lv = node.left.calc
+				rv = node.right.calc
+				if lv == nil and rv == nil
+					node.value = 1
+					return node.value
+				elsif lv == rv
+					node.value = lv + 1
+					return node.value
+				else
+					node.value = [lv, rv].max
+					return node.value
+				end
 			end
+		else
+			return node.value
 		end
+	end
+	
+	def to_s
+		return "<" + @me + ":" + @layer.to_s + ":" + @id.to_s + ":" + @value.to_s + ">"
 	end
 end
 
